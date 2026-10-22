@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   infracost:
@@ -80,6 +81,27 @@ jobs:
             infracost inspect --failing
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comentar resumo no PR
+        if: github.event_name == 'pull_request'
+        working-directory: head/${{ env.TF_PATH }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "## Custo estimado do Infracost"
+            echo ""
+            echo "### Custo por recurso"
+            echo '```'
+            infracost inspect --group-by resource
+            echo '```'
+            echo ""
+            echo "### Políticas que falharam"
+            echo '```'
+            infracost inspect --failing
+            echo '```'
+          } > "${{ runner.temp }}/comentario.md"
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file "${{ runner.temp }}/comentario.md"
 
       - name: Gerar JSON completo do inspect
         working-directory: head/${{ env.TF_PATH }}
