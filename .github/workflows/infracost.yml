@@ -42,3 +42,25 @@ jobs:
       - name: Estimar custo do PR
         working-directory: head/${{ env.TF_PATH }}
         run: infracost scan
+
+      - name: Custo por recurso (do mais caro para o mais barato)
+        working-directory: head/${{ env.TF_PATH }}
+        run: infracost inspect --group-by resource
+
+      - name: Políticas que falharam
+        working-directory: head/${{ env.TF_PATH }}
+        run: infracost inspect --failing
+
+      - name: Custo agrupado por política
+        working-directory: head/${{ env.TF_PATH }}
+        run: infracost inspect --group-by policy
+
+      - name: Gerar JSON completo do inspect
+        working-directory: head/${{ env.TF_PATH }}
+        run: infracost inspect --json > "${{ runner.temp }}/infracost-inspect.json"
+
+      - name: Salvar JSON como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: infracost-inspect
+          path: ${{ runner.temp }}/infracost-inspect.json
