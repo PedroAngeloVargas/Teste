@@ -37,7 +37,7 @@ jobs:
 
       - name: Gerar custo da base
         run: |
-          infracost scan \
+          infracost breakdown \
             --path base/${TF_PATH} \
             --format json \
             --out-file /tmp/infracost-base.json
