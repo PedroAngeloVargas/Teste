@@ -5,7 +5,8 @@ on:
     paths:
       - "**/*.tf"
       - ".github/workflows/infracost.yml"
-
+  workflow_dispatch: 
+  
 permissions:
   contents: read
 
