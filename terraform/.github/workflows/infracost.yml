@@ -5,22 +5,24 @@ on:
     paths:
       - "**/*.tf"
       - ".github/workflows/infracost.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   infracost:
     name: Estimar custo da mudança
     runs-on: ubuntu-latest
     env:
-      INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+      INFRACOST_CLI_AUTHENTICATION_TOKEN: ${{ secrets.INFRACOST_CLI_AUTHENTICATION_TOKEN }}
       TF_PATH: "."   # pasta com os .tf (troque se estiverem em subpasta)
 
     steps:
       - name: Instalar Infracost CLI
         run: |
-          curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh
+          curl -fsSL https://raw.githubusercontent.com/infracost/cli/master/scripts/install.sh | sh
           infracost --version
 
       - name: Checkout da branch base (antes do PR)
@@ -34,15 +36,79 @@ jobs:
         with:
           path: head
 
-      - name: Gerar custo da base
+      - name: Estimar custo da base
+        working-directory: base/${{ env.TF_PATH }}
         run: |
-          infracost breakdown \
-            --path base/${TF_PATH} \
-            --format json \
-            --out-file /tmp/infracost-base.json
+          echo "::group::Scan da branch base"
+          infracost scan
+          echo "::endgroup::"
 
-      - name: Gerar diferença de custo do PR
+      - name: Estimar custo do PR
+        working-directory: head/${{ env.TF_PATH }}
         run: |
-          infracost diff \
-            --path head/${TF_PATH} \
-            --compare-to /tmp/infracost-base.json
+          echo "::group::Scan do PR"
+          infracost scan
+          echo "::endgroup::"
+
+      - name: Análise do PR
+        working-directory: head/${{ env.TF_PATH }}
+        run: |
+          echo "::group::Custo por recurso"
+          infracost inspect --group-by resource
+          echo "::endgroup::"
+
+          echo "::group::Políticas que falharam"
+          infracost inspect --failing
+          echo "::endgroup::"
+
+          echo "::group::Custo agrupado por política"
+          infracost inspect --group-by policy
+          echo "::endgroup::"
+
+      - name: Resumo na página do workflow
+        working-directory: head/${{ env.TF_PATH }}
+        run: |
+          {
+            echo "## Custo estimado do Infracost"
+            echo ""
+            echo "### Custo por recurso"
+            echo '```'
+            infracost inspect --group-by resource
+            echo '```'
+            echo ""
+            echo "### Políticas que falharam"
+            echo '```'
+            infracost inspect --failing
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comentar resumo no PR
+        if: github.event_name == 'pull_request'
+        working-directory: head/${{ env.TF_PATH }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          {
+            echo "## Custo estimado do Infracost"
+            echo ""
+            echo "### Custo por recurso"
+            echo '```'
+            infracost inspect --group-by resource
+            echo '```'
+            echo ""
+            echo "### Políticas que falharam"
+            echo '```'
+            infracost inspect --failing
+            echo '```'
+          } > "${{ runner.temp }}/comentario.md"
+          gh pr comment "${{ github.event.pull_request.number }}" --body-file "${{ runner.temp }}/comentario.md"
+
+      - name: Gerar JSON completo do inspect
+        working-directory: head/${{ env.TF_PATH }}
+        run: infracost inspect --json > "${{ runner.temp }}/infracost-inspect.json"
+
+      - name: Salvar JSON como artefato
+        uses: actions/upload-artifact@v4
+        with:
+          name: infracost-inspect
+          path: ${{ runner.temp }}/infracost-inspect.json
