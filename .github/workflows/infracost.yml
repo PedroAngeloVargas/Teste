@@ -15,7 +15,7 @@ jobs:
     name: Estimar custo da mudança
     runs-on: ubuntu-latest
     env:
-      INFRACOST_API_KEY: ${{ secrets.INFRACOST_CLI_AUTHENTICATION_TOKEN }}
+      INFRACOST_CLI_AUTHENTICATION_TOKEN: ${{ secrets.INFRACOST_CLI_AUTHENTICATION_TOKEN }}
       TF_PATH: "."   # pasta com os .tf (troque se estiverem em subpasta)
 
     steps:
@@ -35,21 +35,8 @@ jobs:
         with:
           path: head
 
-      - name: Gerar custo da base
-        run: |
-          infracost breakdown \
-            --path base/${TF_PATH} \
-            --format json \
-            --out-file /tmp/infracost-base.json
+      - name: Estimar custo da base
+        run: infracost scan --path base/${TF_PATH}
 
-      - name: Gerar diferença de custo do PR
-        run: |
-          infracost diff \
-            --path head/${TF_PATH} \
-            --compare-to /tmp/infracost-base.json
-
-      - name: Mostrar custo detalhado do PR
-        run: |
-          infracost breakdown \
-            --path head/${TF_PATH} \
-            --format table
+      - name: Estimar custo do PR
+        run: infracost scan --path head/${TF_PATH}
