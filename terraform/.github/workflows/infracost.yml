@@ -1,0 +1,48 @@
+name: Infracost
+
+on:
+  pull_request:
+    paths:
+      - "**/*.tf"
+      - ".github/workflows/infracost.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  infracost:
+    name: Estimar custo da mudança
+    runs-on: ubuntu-latest
+    env:
+      INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+      TF_PATH: "."   # pasta com os .tf (troque se estiverem em subpasta)
+
+    steps:
+      - name: Instalar Infracost CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh
+          infracost --version
+
+      - name: Checkout da branch base (antes do PR)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+
+      - name: Checkout da branch do PR
+        uses: actions/checkout@v4
+        with:
+          path: head
+
+      - name: Gerar custo da base
+        run: |
+          infracost breakdown \
+            --path base/${TF_PATH} \
+            --format json \
+            --out-file /tmp/infracost-base.json
+
+      - name: Gerar diferença de custo do PR
+        run: |
+          infracost diff \
+            --path head/${TF_PATH} \
+            --compare-to /tmp/infracost-base.json
