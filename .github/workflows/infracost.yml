@@ -36,7 +36,9 @@ jobs:
           path: head
 
       - name: Estimar custo da base
-        run: infracost scan --path base/${TF_PATH}
+        working-directory: base/${{ env.TF_PATH }}
+        run: infracost scan
 
       - name: Estimar custo do PR
-        run: infracost scan --path head/${TF_PATH}
+        working-directory: head/${{ env.TF_PATH }}
+        run: infracost scan
