@@ -5,8 +5,8 @@ on:
     paths:
       - "**/*.tf"
       - ".github/workflows/infracost.yml"
-  workflow_dispatch: 
-  
+  workflow_dispatch:
+
 permissions:
   contents: read
 
@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Instalar Infracost CLI
         run: |
-          curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh
+          curl -fsSL https://raw.githubusercontent.com/infracost/cli/master/scripts/install.sh | sh
           infracost --version
 
       - name: Checkout da branch base (antes do PR)
@@ -47,3 +47,9 @@ jobs:
           infracost diff \
             --path head/${TF_PATH} \
             --compare-to /tmp/infracost-base.json
+
+      - name: Mostrar custo detalhado do PR
+        run: |
+          infracost breakdown \
+            --path head/${TF_PATH} \
+            --format table
