@@ -37,23 +37,49 @@ jobs:
 
       - name: Estimar custo da base
         working-directory: base/${{ env.TF_PATH }}
-        run: infracost scan
+        run: |
+          echo "::group::Scan da branch base"
+          infracost scan
+          echo "::endgroup::"
 
       - name: Estimar custo do PR
         working-directory: head/${{ env.TF_PATH }}
-        run: infracost scan
+        run: |
+          echo "::group::Scan do PR"
+          infracost scan
+          echo "::endgroup::"
 
-      - name: Custo por recurso (do mais caro para o mais barato)
+      - name: Análise do PR
         working-directory: head/${{ env.TF_PATH }}
-        run: infracost inspect --group-by resource
+        run: |
+          echo "::group::Custo por recurso"
+          infracost inspect --group-by resource
+          echo "::endgroup::"
 
-      - name: Políticas que falharam
-        working-directory: head/${{ env.TF_PATH }}
-        run: infracost inspect --failing
+          echo "::group::Políticas que falharam"
+          infracost inspect --failing
+          echo "::endgroup::"
 
-      - name: Custo agrupado por política
+          echo "::group::Custo agrupado por política"
+          infracost inspect --group-by policy
+          echo "::endgroup::"
+
+      - name: Resumo na página do workflow
         working-directory: head/${{ env.TF_PATH }}
-        run: infracost inspect --group-by policy
+        run: |
+          {
+            echo "## Custo estimado do Infracost"
+            echo ""
+            echo "### Custo por recurso"
+            echo '```'
+            infracost inspect --group-by resource
+            echo '```'
+            echo ""
+            echo "### Políticas que falharam"
+            echo '```'
+            infracost inspect --failing
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Gerar JSON completo do inspect
         working-directory: head/${{ env.TF_PATH }}
